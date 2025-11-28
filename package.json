@@ -1,0 +1,62 @@
+{
+  "name": "vscode-picgo-paste",
+  "displayName": "PicGo Paste",
+  "description": "Upload images from clipboard using PicGo when pasting in Markdown files",
+  "version": "0.0.1",
+  "publisher": "your-name",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "picgo-paste.uploadFromClipboard",
+        "title": "PicGo: Upload Image from Clipboard"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "picgo-paste.uploadFromClipboard",
+        "key": "ctrl+alt+v",
+        "mac": "cmd+alt+v",
+        "when": "editorTextFocus && editorLangId == markdown"
+      }
+    ],
+    "configuration": {
+      "title": "PicGo Paste",
+      "properties": {
+        "picgo-paste.picgoPath": {
+          "type": "string",
+          "default": "picgo",
+          "description": "Path to PicGo CLI executable"
+        },
+        "picgo-paste.autoUploadOnPaste": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically upload image when pasting in Markdown files"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^18.x",
+    "@types/vscode": "^1.95.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}
