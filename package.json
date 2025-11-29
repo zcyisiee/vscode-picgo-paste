@@ -2,8 +2,10 @@
   "name": "vscode-picgo-paste",
   "displayName": "PicGo Paste",
   "description": "Upload images from clipboard using PicGo when pasting in Markdown files",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "publisher": "zcyisiee",
+  "license": "MIT",
+  "icon": "icon.jpg",
   "repository": {
     "type": "git",
     "url": "https://github.com/zcyisiee/vscode-picgo-paste.git"

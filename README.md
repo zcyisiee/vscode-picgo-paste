@@ -1,6 +1,6 @@
 # PicGo Paste - VSCode Extension
 
-在 Markdown 文件中粘贴图片时，**自动**调用 PicGo 上传到图床，并插入正确的 Markdown 图片引用。
+在 Markdown 文件中粘贴图片时，**自动**调用 PicGo 上传到图床，并插入正确的 Markdown 图片引用。[VSCode插件](https://marketplace.visualstudio.com/items?itemName=zcyisiee.vscode-picgo-paste)。
 
 ## ✨ 功能特性
 
