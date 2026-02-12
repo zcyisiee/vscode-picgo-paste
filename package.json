@@ -2,7 +2,7 @@
   "name": "vscode-picgo-paste",
   "displayName": "PicGo Paste",
   "description": "Upload images from clipboard using PicGo when pasting in Markdown files",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "zcyisiee",
   "license": "MIT",
   "icon": "icon.jpg",
@@ -58,7 +58,7 @@
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/node": "^18.x",
+    "@types/node": "^18.0.0",
     "@types/vscode": "^1.95.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
