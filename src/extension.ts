@@ -4,6 +4,24 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { exec, spawn } from 'child_process';
 
+const outputChannel = vscode.window.createOutputChannel('PicGo Paste');
+
+/**
+ * Strip ANSI escape codes from terminal output.
+ */
+function stripAnsi(input: string): string {
+    return input.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '');
+}
+
+/**
+ * Extract the first URL from combined output.
+ */
+function extractFirstUrl(output: string): string | null {
+    const cleaned = stripAnsi(output).replace(/\r\n/g, '\n');
+    const urlMatch = cleaned.match(/https?:\/\/[^\s\]\)\n]+/);
+    return urlMatch ? urlMatch[0].trim() : null;
+}
+
 /**
  * 获取配置
  */
@@ -128,7 +146,15 @@ async function uploadWithPicgo(imagePath: string): Promise<string | null> {
     const picgoPath = config.picgoPath;
 
     return new Promise((resolve) => {
-        const picgo = spawn(picgoPath, ['upload', imagePath]);
+        const args = ['upload', imagePath];
+        const spawnOptions = {
+            shell: process.platform === 'win32',
+            windowsHide: true,
+            env: process.env
+        };
+
+        outputChannel.appendLine(`[PicGo Paste] exec: ${picgoPath} ${args.map((a) => JSON.stringify(a)).join(' ')}`);
+        const picgo = spawn(picgoPath, args, spawnOptions);
         
         let stdout = '';
         let stderr = '';
@@ -144,26 +170,27 @@ async function uploadWithPicgo(imagePath: string): Promise<string | null> {
         picgo.on('close', (code) => {
             if (code === 0) {
                 // picgo 成功时会输出上传后的 URL
-                const urlMatch = stdout.match(/https?:\/\/[^\s\]\n]+/);
-                if (urlMatch) {
-                    resolve(urlMatch[0].trim());
-                } else {
-                    const trimmedOutput = stdout.trim();
-                    if (trimmedOutput.startsWith('http')) {
-                        resolve(trimmedOutput.split('\n')[0].trim());
-                    } else {
-                        console.log('PicGo output:', stdout);
-                        resolve(null);
-                    }
+                const combined = `${stdout}\n${stderr}`;
+                const url = extractFirstUrl(combined);
+                if (url) {
+                    resolve(url);
+                    return;
                 }
+
+                outputChannel.appendLine('[PicGo Paste] PicGo succeeded but no URL was found in output.');
+                outputChannel.appendLine(`[PicGo Paste] stdout: ${stripAnsi(stdout).trim()}`);
+                outputChannel.appendLine(`[PicGo Paste] stderr: ${stripAnsi(stderr).trim()}`);
+                resolve(null);
             } else {
-                console.error('PicGo error:', stderr);
+                outputChannel.appendLine(`[PicGo Paste] PicGo exited with code: ${code}`);
+                outputChannel.appendLine(`[PicGo Paste] stdout: ${stripAnsi(stdout).trim()}`);
+                outputChannel.appendLine(`[PicGo Paste] stderr: ${stripAnsi(stderr).trim()}`);
                 resolve(null);
             }
         });
 
         picgo.on('error', (err) => {
-            console.error('Failed to start PicGo:', err);
+            outputChannel.appendLine(`[PicGo Paste] Failed to start PicGo: ${String(err)}`);
             resolve(null);
         });
     });
@@ -341,6 +368,10 @@ class PicgoPasteEditProvider implements vscode.DocumentPasteEditProvider {
  */
 export function activate(context: vscode.ExtensionContext) {
     console.log('PicGo Paste extension is now active!');
+
+    context.subscriptions.push(outputChannel);
+    outputChannel.appendLine('[PicGo Paste] Extension activated');
+    //outputChannel.show(true);
 
     // 注册手动上传命令 (Cmd+Alt+V)
     const uploadCommand = vscode.commands.registerCommand(
