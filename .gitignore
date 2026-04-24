@@ -1,5 +1,43 @@
-out/
+# Dependencies
 node_modules/
-.vscode-test/
+jspm_packages/
+
+# Build output
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# VSIX packages
 *.vsix
+
+# VS Code test
+.vscode-test/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
 .DS_Store
+Thumbs.db
+*.swp
+*.bak
+
+# VS Code local settings
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace

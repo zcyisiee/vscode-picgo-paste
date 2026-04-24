@@ -1,8 +1,8 @@
 {
   "name": "vscode-picgo-paste",
   "displayName": "PicGo Paste",
-  "description": "Upload images from clipboard using PicGo when pasting in Markdown files",
-  "version": "1.0.0",
+  "description": "Upload images from clipboard in Markdown files using S.EE or PicGo",
+  "version": "1.0.3",
   "publisher": "zcyisiee",
   "license": "MIT",
   "icon": "icon.jpg",
@@ -24,7 +24,7 @@
     "commands": [
       {
         "command": "picgo-paste.uploadFromClipboard",
-        "title": "PicGo: Upload Image from Clipboard"
+        "title": "Upload Image from Clipboard"
       }
     ],
     "keybindings": [
@@ -38,10 +38,24 @@
     "configuration": {
       "title": "PicGo Paste",
       "properties": {
+        "picgo-paste.provider": {
+          "type": "string",
+          "default": "s.ee",
+          "enum": [
+            "s.ee",
+            "picgo"
+          ],
+          "description": "Image upload provider to use"
+        },
+        "picgo-paste.seeApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "S.EE API key used when provider is s.ee. SEE_API_TOKEN environment variable takes precedence."
+        },
         "picgo-paste.picgoPath": {
           "type": "string",
           "default": "picgo",
-          "description": "Path to PicGo CLI executable"
+          "description": "Path to PicGo CLI executable used when provider is picgo"
         },
         "picgo-paste.autoUploadOnPaste": {
           "type": "boolean",
@@ -55,10 +69,11 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src --ext ts"
+    "lint": "eslint src --ext ts",
+    "test": "npm run compile && node --test out/**/*.test.js"
   },
   "devDependencies": {
-    "@types/node": "^18.x",
+    "@types/node": "^18.0.0",
     "@types/vscode": "^1.95.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
