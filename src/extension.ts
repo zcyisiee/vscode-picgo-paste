@@ -2,7 +2,9 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import * as https from 'https';
 import { exec, spawn } from 'child_process';
+import { parseSeeUploadResponse, resolveUploadSettings, UploadSettings } from './provider-config';
 
 const outputChannel = vscode.window.createOutputChannel('PicGo Paste');
 
@@ -27,10 +29,12 @@ function extractFirstUrl(output: string): string | null {
  */
 function getConfig() {
     const config = vscode.workspace.getConfiguration('picgo-paste');
-    return {
+    return resolveUploadSettings({
+        provider: config.get<string>('provider', 's.ee'),
         picgoPath: config.get<string>('picgoPath', 'picgo'),
+        seeApiKey: config.get<string>('seeApiKey', ''),
         autoUploadOnPaste: config.get<boolean>('autoUploadOnPaste', true)
-    };
+    }, process.env);
 }
 
 function formatTimestamp(date: Date): string {
@@ -160,6 +164,25 @@ async function saveDataTransferImageToFile(dataTransfer: vscode.DataTransfer): P
     return null;
 }
 
+function getMimeTypeFromPath(imagePath: string): string {
+    const ext = path.extname(imagePath).toLowerCase();
+
+    switch (ext) {
+        case '.jpg':
+        case '.jpeg':
+            return 'image/jpeg';
+        case '.gif':
+            return 'image/gif';
+        case '.webp':
+            return 'image/webp';
+        case '.bmp':
+            return 'image/bmp';
+        case '.png':
+        default:
+            return 'image/png';
+    }
+}
+
 /**
  * 调用 picgo 上传图片
  */
@@ -218,6 +241,83 @@ async function uploadWithPicgo(imagePath: string): Promise<string | null> {
     });
 }
 
+async function uploadWithSee(imagePath: string, config: UploadSettings): Promise<string | null> {
+    if (!config.seeApiKey) {
+        outputChannel.appendLine('[PicGo Paste] Missing S.EE API key. Set SEE_API_TOKEN or picgo-paste.seeApiKey.');
+        return null;
+    }
+
+    const fileBuffer = fs.readFileSync(imagePath);
+    const fileName = path.basename(imagePath);
+    const mimeType = getMimeTypeFromPath(imagePath);
+    const boundary = `----vscode-picgo-paste-${Date.now().toString(16)}`;
+    const preamble = Buffer.from(
+        `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="smfile"; filename="${fileName}"\r\n` +
+        `Content-Type: ${mimeType}\r\n\r\n`
+    );
+    const epilogue = Buffer.from(`\r\n--${boundary}--\r\n`);
+    const requestBody = Buffer.concat([preamble, fileBuffer, epilogue]);
+
+    outputChannel.appendLine('[PicGo Paste] Uploading image with S.EE API');
+
+    return new Promise((resolve) => {
+        const request = https.request(
+            'https://s.ee/api/v1/file/upload',
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': config.seeApiKey,
+                    'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                    'Content-Length': requestBody.length
+                }
+            },
+            (response) => {
+                let responseBody = '';
+
+                response.on('data', (chunk) => {
+                    responseBody += chunk.toString();
+                });
+
+                response.on('end', () => {
+                    try {
+                        const parsed = JSON.parse(responseBody) as unknown;
+                        const imageUrl = parseSeeUploadResponse(parsed as { success?: boolean; data?: { url?: string; }; });
+
+                        if (imageUrl) {
+                            resolve(imageUrl);
+                            return;
+                        }
+
+                        outputChannel.appendLine(`[PicGo Paste] S.EE upload failed: ${responseBody}`);
+                        resolve(null);
+                    } catch (error) {
+                        outputChannel.appendLine(`[PicGo Paste] Failed to parse S.EE response: ${String(error)}`);
+                        outputChannel.appendLine(`[PicGo Paste] Raw response: ${responseBody}`);
+                        resolve(null);
+                    }
+                });
+            }
+        );
+
+        request.on('error', (error) => {
+            outputChannel.appendLine(`[PicGo Paste] S.EE request failed: ${String(error)}`);
+            resolve(null);
+        });
+
+        request.write(requestBody);
+        request.end();
+    });
+}
+
+async function uploadImage(imagePath: string, config: UploadSettings): Promise<string | null> {
+    if (config.provider === 'picgo') {
+        return uploadWithPicgo(imagePath);
+    }
+
+    return uploadWithSee(imagePath, config);
+}
+
 /**
  * 在编辑器中插入 Markdown 图片链接
  */
@@ -267,7 +367,8 @@ async function uploadClipboardImage() {
                     return;
                 }
 
-                const imageUrl = await uploadWithPicgo(tempImagePath);
+                const config = getConfig();
+                const imageUrl = await uploadImage(tempImagePath, config);
                 
                 try {
                     fs.unlinkSync(tempImagePath);
@@ -276,7 +377,7 @@ async function uploadClipboardImage() {
                 }
 
                 if (!imageUrl) {
-                    vscode.window.showErrorMessage('Failed to upload image with PicGo. Please check your PicGo configuration.');
+                    vscode.window.showErrorMessage(`Failed to upload image with ${config.provider}. Please check your upload configuration.`);
                     return;
                 }
 
@@ -346,11 +447,11 @@ class PicgoPasteEditProvider implements vscode.DocumentPasteEditProvider {
         const imageUrl = await vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
-                title: 'Uploading image to PicGo...',
+                title: `Uploading image to ${config.provider}...`,
                 cancellable: false
             },
             async () => {
-                const result = await uploadWithPicgo(tempImagePath!);
+                const result = await uploadImage(tempImagePath!, config);
                 
                 // 清理临时文件
                 try {
@@ -364,7 +465,7 @@ class PicgoPasteEditProvider implements vscode.DocumentPasteEditProvider {
         );
 
         if (!imageUrl) {
-            vscode.window.showErrorMessage('Failed to upload image with PicGo');
+            vscode.window.showErrorMessage(`Failed to upload image with ${config.provider}`);
             return undefined;
         }
 
