@@ -128,7 +128,7 @@ async function uploadWithPicgo(imagePath: string): Promise<string | null> {
     const picgoPath = config.picgoPath;
 
     return new Promise((resolve) => {
-        const picgo = spawn(picgoPath, ['upload', imagePath]);
+        const picgo = spawn(picgoPath, ['upload', imagePath], { shell: true });
         
         let stdout = '';
         let stderr = '';
